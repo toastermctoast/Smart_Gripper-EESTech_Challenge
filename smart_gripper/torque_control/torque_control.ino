@@ -55,6 +55,9 @@ BLDCDriver3PWM driver = BLDCDriver3PWM(U, V, W, EN_U, EN_V, EN_W);
 // voltage set point variable
 float target_voltage = -1;
 
+float target_angle = 0.0;          // Angle target in radians
+const float angle_step = 0.05;        // Change per button press
+
 #if ENABLE_MAGNETIC_SENSOR
 // create a instance of 3D magnetic sensor
 using namespace ifx::tlx493d;
@@ -101,7 +104,48 @@ void setup() {
   // choose FOC modulation (optional)
   motor.foc_modulation = FOCModulationType::SpaceVectorPWM;
   // set motion control loop to be used
-  motor.controller = MotionControlType::torque;
+  //motor.controller = MotionControlType::torque;
+
+  motor.controller = MotionControlType::angle;
+
+  // velocity PID controller parameters
+  // default P=0.5 I = 10 D =0
+  motor.PID_velocity.P = 0.2;
+  motor.PID_velocity.I = 20;
+  motor.PID_velocity.D = 0.001;
+  // jerk control using voltage voltage ramp
+  // default value is 300 volts per sec  ~ 0.3V per millisecond
+  motor.PID_velocity.output_ramp = 1000;
+
+  // velocity low pass filtering
+  // default 5ms - try different values to see what is the best. 
+  // the lower the less filtered
+  motor.LPF_velocity.Tf = 0.01;
+
+  // setting the limits
+  // either voltage
+  motor.voltage_limit = 10; // Volts - default driver.voltage_limit
+  // of current 
+  motor.current_limit = 2; // Amps - default 0.2Amps
+
+  // angle PID controller 
+  // default P=20
+  motor.P_angle.P = 20; 
+  motor.P_angle.I = 0;  // usually only P controller is enough 
+  motor.P_angle.D = 0;  // usually only P controller is enough 
+  // acceleration control using output ramp
+  // this variable is in rad/s^2 and sets the limit of acceleration
+  motor.P_angle.output_ramp = 10000; // default 1e6 rad/s^2
+
+  // angle low pass filtering
+  // default 0 - disabled  
+  // use only for very noisy position sensors - try to avoid and keep the values very small
+  motor.LPF_angle.Tf = 0; // default 0
+
+  // setting the limits
+  //  maximal velocity of the position control
+  motor.velocity_limit = 4; // rad/s - default 20
+
 
   // comment out if not needed
   // motor.useMonitoring(Serial);
@@ -134,51 +178,69 @@ void setup() {
 }
 
 void loop() {
-#if ENABLE_MAGNETIC_SENSOR
-  if (digitalRead(BUTTON1) == LOW) {
-    target_voltage = -3; // close gripper
-  } else if (digitalRead(BUTTON2) == LOW) {
-    target_voltage = 3; // open gripper
-  } else {
-    target_voltage = 0; // stop gripper
-  }
-  // read the magnetic field data
-  double x, y, z;
-  dut.setSensitivity(TLx493D_FULL_RANGE_e);
-  dut.getMagneticField(&x, &y, &z);
 
+  // -- Gripper Control with Buttons --
+  if (digitalRead(BUTTON1) == LOW) {
+    target_angle += angle_step;
+    if (target_angle > 3.14) target_angle = 3.14;  // limit ~180°
+    delay(150); // debounce
+  }
+   
+  else if (digitalRead(BUTTON2) == LOW) {
+    target_angle -= angle_step;
+    if (target_angle < 0.0) target_angle = 0.0;    // limit ~0°
+    delay(150); // debounce
+  }
+
+
+  Serial.print("Target angle: ");
+  Serial.print(target_angle);
+  Serial.print(" | Shaft angle: ");
+  Serial.println(motor.shaftAngle());
+
+
+
+#if ENABLE_MAGNETIC_SENSOR
+  double x, y, z;
+  dut.getMagneticField(&x, &y, &z);
   // subtract the offsets from the raw data
   x -= xOffset;
   y -= yOffset;
   z -= zOffset;
 
   // print the magnetic field data
-  Serial.print(x);
+  /*Serial.print(x);
   Serial.print(",");
 
   Serial.print(y);
   Serial.print(",");
 
   Serial.print(z);
-  Serial.println("");
+  Serial.println("");*/
 #endif
-  // update angle sensor data
-  tle5012Sensor.update();
+
+// update angle sensor data
+tle5012Sensor.update();
+
 #if ENABLE_READ_ANGLE
   Serial.print(tle5012Sensor.getSensorAngle());
   Serial.println("");
 #endif
-  // main FOC algorithm function
-  // the faster you run this function the better
-  // Arduino UNO loop  ~1kHz
-  // Bluepill loop ~10kHz
-  motor.loopFOC();
 
-  // Motion control function
-  // velocity, position or voltage (defined in motor.controller)
-  // this function can be run at much lower frequency than loopFOC() function
-  // You can also use motor.move() and set the motor.target in the code
-  motor.move(target_voltage);
+//--------MOVE MOTOR----------               
+
+// main FOC algorithm function
+// the faster you run this function the better
+// Arduino UNO loop  ~1kHz
+// Bluepill loop ~10kHz
+motor.loopFOC();    
+
+// Motion control function
+// velocity, position or voltage (defined in motor.controller)
+// this function can be run at much lower frequency than loopFOC() function
+// You can also use motor.move() and set the motor.target in the code
+motor.move(target_angle);         // PID angle control
+  
 #if ENABLE_COMMANDER
   // user communication
   command.run();
