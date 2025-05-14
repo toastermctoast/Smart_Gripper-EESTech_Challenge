@@ -93,10 +93,10 @@ void setup() {
   motor.controller = MotionControlType::angle;
 
   // velocity PID controller parameters
-  // default P=0.5 I = 10 D =0
-  motor.PID_velocity.P = 0.2;
-  motor.PID_velocity.I = 20;
-  motor.PID_velocity.D = 0.001;
+  // default P=0.5 I=10 D=0
+  motor.PID_velocity.P = 0.5;
+  motor.PID_velocity.I = 10;
+  motor.PID_velocity.D = 0;
   // jerk control using voltage voltage ramp
   // default value is 300 volts per sec  ~ 0.3V per millisecond
   motor.PID_velocity.output_ramp = 1000;
@@ -260,15 +260,15 @@ ObjectType is_there_object(double B) {
   double d_B = fabs(B - last_B);
   last_B = B;
 
-  if (d_B > 0.15) {   // Object detected
+  if (d_B > 2) {   // Object detected
     Serial.println("🟥 Hard object detected");
     return HARD_OBJECT;
 
-  } else if (d_B > 0.05) {
+  } else if (d_B > 1) {
     Serial.println("🟨 Medium-soft object detected");
     return MEDIUM_OBJECT;
 
-  } else if (d_B > 0.01) {
+  } else if (d_B > 0.3) {
     Serial.println("🟩 Soft object detected");
     return SOFT_OBJECT;
   }
