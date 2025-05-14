@@ -2,5 +2,5 @@
 
 This is a repository of the code created for the **EESTech Challenge 2025** in Trieste.
 
-[Challenge Description](https://github.com/Infineon/hackathon/master/challenge_introduction.pdf)
+[Challenge Description](https://github.com/Infineon/hackathon/blob/master/challenge_introduction.pdf)
 
