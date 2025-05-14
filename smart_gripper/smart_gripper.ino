@@ -1,22 +1,3 @@
-/**
- * Torque control example of adaptive gripper. Based on SimpleFOC library.
- *
- * 1. After flashing this code to the XMC4700 Relax Kit, angle alignment will be
- *    applied. The gripper must be opened to its fullest extent to release the gear
- *    and minimize load for alignment.
- *
- * 2. After angle alignment, attach the gears (manually close the gripper a bit
- *    to align the gears) and you can start controlling the gripper's opening and
- *    closing. Pressing button 1 on the board will close the gripper, and pressing
- *    button 2 will open it. Note: There is no upper limit set for opening, so it
- *    is possible that the gears may detach if the maximum is exceeded.
- *
- * 3. Open the serial monitor/serial plotter to view data from the magnetic
- *    sensors placed under the TPU material on top of the clip. When the gripping
- *    clip grabs an object and generates pressure, the data changes.
- *
- * This is a basic example; you can be creative to improve this gripper!
- */
 #include "TLE5012Sensor.h"
 #include "TLx493D_inc.hpp"
 #include "config.h"
