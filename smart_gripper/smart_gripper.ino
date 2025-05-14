@@ -22,22 +22,6 @@
 #include "config.h"
 #include <SimpleFOC.h>
 
-<<<<<<< Updated upstream
-// define SPI pins for TLE5012 sensor
-#define PIN_SPI1_SS0 94  // Chip Select (CS) pin
-#define PIN_SPI1_MOSI 69 // MOSI pin
-#define PIN_SPI1_MISO 95 // MISO pin
-#define PIN_SPI1_SCK 68  // SCK pin
-
-enum ObjectType {
-  NO_OBJECT,
-  SOFT_OBJECT,
-  MEDIUM_OBJECT,
-  HARD_OBJECT
-};
-
-=======
->>>>>>> Stashed changes
 // create an instance of SPIClass3W for 3-wire SPI communication
 tle5012::SPIClass3W tle5012::SPI3W1(2);
 // create an instance of TLE5012Sensor
@@ -54,14 +38,7 @@ BLDCMotor motor = BLDCMotor(
 // BLDC driver instance
 BLDCDriver3PWM driver = BLDCDriver3PWM(U, V, W, EN_U, EN_V, EN_W);
 
-<<<<<<< Updated upstream
-// voltage set point variable
-float target_voltage = -1;
-double B_abs;
-
-=======
->>>>>>> Stashed changes
-float target_angle = 2.0;          // Angle target in radians
+float target_angle = 2;         // Angle target in radians
 const float angle_step = 1;        // Change per button press
 ObjectType object;
 
@@ -153,7 +130,6 @@ void setup() {
   //  maximal velocity of the position control
   motor.velocity_limit = 4; // rad/s - default 20
 
-
   // comment out if not needed
   // motor.useMonitoring(Serial);
 
@@ -203,27 +179,7 @@ void loop() {
   Serial.println(motor.shaftAngle());
 
   B_abs = sqrt(x*x + y*y + z*z);
-
-<<<<<<< Updated upstream
-    // print the magnetic field data
-    Serial.print("Magnetic Field: ");
-    Serial.print(x);
-    Serial.print(",");
-
-    Serial.print(y);
-    Serial.print(",");
-
-    Serial.print(z);
-    Serial.println("");
-
-    B_abs = sqrt(x*x + y*y + z*z);
-
-    object = is_there_object(B_abs);
-
-  #endif
-=======
   object = is_there_object(B_abs);
->>>>>>> Stashed changes
 
   // update angle sensor data
   tle5012Sensor.update();
@@ -282,9 +238,6 @@ void calibrateSensor() {
 
 }
 
-<<<<<<< Updated upstream
-
-=======
 void getB(double* x, double* y, double* z){
   dut.getMagneticField(x, y, z);
   *x -= xOffset;
@@ -299,7 +252,6 @@ void getB(double* x, double* y, double* z){
   Serial.println(*z);
 }
 #endif
->>>>>>> Stashed changes
 
 ObjectType is_there_object(double B) {
 
