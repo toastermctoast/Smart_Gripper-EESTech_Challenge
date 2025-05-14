@@ -55,8 +55,9 @@ BLDCDriver3PWM driver = BLDCDriver3PWM(U, V, W, EN_U, EN_V, EN_W);
 // voltage set point variable
 float target_voltage = -1;
 
-float target_angle = 0.0;          // Angle target in radians
-const float angle_step = 0.05;        // Change per button press
+float target_angle = 2.0;          // Angle target in radians
+const float angle_step = 1;        // Change per button press
+ObjectType object;
 
 #if ENABLE_MAGNETIC_SENSOR
 // create a instance of 3D magnetic sensor
@@ -182,13 +183,11 @@ void loop() {
   // -- Gripper Control with Buttons --
   if (digitalRead(BUTTON1) == LOW) {
     target_angle += angle_step;
-    if (target_angle > 3.14) target_angle = 3.14;  // limit ~180°
     delay(150); // debounce
   }
    
   else if (digitalRead(BUTTON2) == LOW) {
     target_angle -= angle_step;
-    if (target_angle < 0.0) target_angle = 0.0;    // limit ~0°
     delay(150); // debounce
   }
 
@@ -206,14 +205,20 @@ void loop() {
     z -= zOffset;
 
     // print the magnetic field data
-    /*Serial.print(x);
+    Serial.print("Magnetic Field: ")
+    Serial.print(x);
     Serial.print(",");
 
     Serial.print(y);
     Serial.print(",");
 
     Serial.print(z);
-    Serial.println("");*/
+    Serial.println("");
+
+    B_abs = sqrt(x*x + y*y + z*z);
+
+    object = is_there_object(B_abs);
+
   #endif
 
   // update angle sensor data
@@ -242,9 +247,11 @@ void loop() {
     // user communication
     command.run();
   #endif
-  }
 
-  #if ENABLE_MAGNETIC_SENSOR
+  Serial.println();
+}
+
+#if ENABLE_MAGNETIC_SENSOR
   /**
   * @brief Calibrates the magnetic field sensor by calculating the average
   * offsets for the X, Y, and Z axes over a series of samples.
@@ -268,6 +275,39 @@ void calibrateSensor() {
   xOffset = sumX / CALIBRATION_SAMPLES;
   yOffset = sumY / CALIBRATION_SAMPLES;
   zOffset = sumZ / CALIBRATION_SAMPLES;
+
 }
 #endif
+
+enum ObjectType {
+  NO_OBJECT,
+  SOFT_OBJECT,
+  MEDIUM_OBJECT,
+  HARD_OBJECT
+};
+
+ObjectType is_there_object(double B) {
+
+  static double last_B = 0;
+  double B_threshold = 50;
+
+  double d_B = fabs(B - last_B);
+  last_B = B;
+
+  if (d_B > 0.15) {   // Object detected
+    Serial.println("🟥 Hard object detected");
+    return HARD_OBJECT;
+
+  } else if (d_B > 0.05) {
+    Serial.println("🟨 Medium-soft object detected");
+    return MEDIUM_OBJECT;
+
+  } else if (d_B > 0.01) {
+    Serial.println("🟩 Soft object detected");
+    return SOFT_OBJECT;
+  }
+  return NO_OBJECT;
+
+}
+
 
