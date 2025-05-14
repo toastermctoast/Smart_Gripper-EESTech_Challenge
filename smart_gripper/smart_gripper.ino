@@ -35,6 +35,8 @@ enum ObjectType {
   HARD_OBJECT
 };
 
+=======
+>>>>>>> Stashed changes
 // create an instance of SPIClass3W for 3-wire SPI communication
 tle5012::SPIClass3W tle5012::SPI3W1(2);
 // create an instance of TLE5012Sensor
@@ -48,14 +50,6 @@ BLDCMotor motor = BLDCMotor(
     0.000133); // 7 pole pairs, 0.24 Ohm phase resistance, 360 KV and 0.000133H
 // you can find more data of motor in the doc
 
-// define driver pins
-const int U = 11;
-const int V = 10;
-const int W = 9;
-const int EN_U = 6;
-const int EN_V = 5;
-const int EN_W = 3;
-
 // BLDC driver instance
 BLDCDriver3PWM driver = BLDCDriver3PWM(U, V, W, EN_U, EN_V, EN_W);
 
@@ -63,6 +57,8 @@ BLDCDriver3PWM driver = BLDCDriver3PWM(U, V, W, EN_U, EN_V, EN_W);
 float target_voltage = -1;
 double B_abs;
 
+=======
+>>>>>>> Stashed changes
 float target_angle = 2.0;          // Angle target in radians
 const float angle_step = 1;        // Change per button press
 ObjectType object;
@@ -165,7 +161,7 @@ void setup() {
   motor.initFOC();
   Serial.println(F("Motor ready."));
 
-#if ENABLE_MAGNETIC_SENSOR
+  #if ENABLE_MAGNETIC_SENSOR
   // start 3D magnetic sensor
   dut.begin();
   // calibrate 3D magnetic sensor to get the offsets
@@ -175,14 +171,9 @@ void setup() {
   // set the pin modes for buttons
   pinMode(BUTTON1, INPUT);
   pinMode(BUTTON2, INPUT);
-#endif
+  #endif
 
   Serial.print("setup done.\n");
-#if ENABLE_COMMANDER
-  // add target command T
-  command.add('T', doTarget, "target voltage");
-  Serial.println(F("Set the target voltage using serial terminal:"));
-#endif
   _delay(1000);
 }
 
@@ -191,26 +182,25 @@ void loop() {
   // -- Gripper Control with Buttons --
   if (digitalRead(BUTTON1) == LOW) {
     target_angle += angle_step;
+    //if (target_angle > -1) target_angle = -1;
     delay(150); // debounce
   }
    
   else if (digitalRead(BUTTON2) == LOW) {
     target_angle -= angle_step;
+    //if (target_angle < -18) target_angle = -18;
     delay(150); // debounce
   }
+
+  double x, y, z, B_abs;
+  getB(&x, &y, &z);
 
   Serial.print("Target angle: ");
   Serial.print(target_angle);
   Serial.print(" | Shaft angle: ");
   Serial.println(motor.shaftAngle());
 
-  #if ENABLE_MAGNETIC_SENSOR
-    double x, y, z;
-    dut.getMagneticField(&x, &y, &z);
-    // subtract the offsets from the raw data
-    x -= xOffset;
-    y -= yOffset;
-    z -= zOffset;
+  B_abs = sqrt(x*x + y*y + z*z);
 
     // print the magnetic field data
     Serial.print("Magnetic Field: ");
@@ -228,6 +218,9 @@ void loop() {
     object = is_there_object(B_abs);
 
   #endif
+=======
+  object = is_there_object(B_abs);
+>>>>>>> Stashed changes
 
   // update angle sensor data
   tle5012Sensor.update();
@@ -285,14 +278,29 @@ void calibrateSensor() {
   zOffset = sumZ / CALIBRATION_SAMPLES;
 
 }
+
+<<<<<<< Updated upstream
+
+=======
+void getB(double* x, double* y, double* z){
+  dut.getMagneticField(x, y, z);
+  *x -= xOffset;
+  *y -= yOffset;
+  *z -= zOffset;
+
+  Serial.print("Magnetic Field: ");
+  Serial.print(*x);
+  Serial.print(",");
+  Serial.print(*y);
+  Serial.print(",");
+  Serial.println(*z);
+}
 #endif
-
-
+>>>>>>> Stashed changes
 
 ObjectType is_there_object(double B) {
 
   static double last_B = 0;
-  double B_threshold = 50;
 
   double d_B = fabs(B - last_B);
   last_B = B;
@@ -312,5 +320,6 @@ ObjectType is_there_object(double B) {
   return NO_OBJECT;
 
 }
+
 
 
