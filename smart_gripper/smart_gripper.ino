@@ -28,6 +28,13 @@
 #define PIN_SPI1_MISO 95 // MISO pin
 #define PIN_SPI1_SCK 68  // SCK pin
 
+enum ObjectType {
+  NO_OBJECT,
+  SOFT_OBJECT,
+  MEDIUM_OBJECT,
+  HARD_OBJECT
+};
+
 // create an instance of SPIClass3W for 3-wire SPI communication
 tle5012::SPIClass3W tle5012::SPI3W1(2);
 // create an instance of TLE5012Sensor
@@ -54,6 +61,7 @@ BLDCDriver3PWM driver = BLDCDriver3PWM(U, V, W, EN_U, EN_V, EN_W);
 
 // voltage set point variable
 float target_voltage = -1;
+double B_abs;
 
 float target_angle = 2.0;          // Angle target in radians
 const float angle_step = 1;        // Change per button press
@@ -205,7 +213,7 @@ void loop() {
     z -= zOffset;
 
     // print the magnetic field data
-    Serial.print("Magnetic Field: ")
+    Serial.print("Magnetic Field: ");
     Serial.print(x);
     Serial.print(",");
 
@@ -279,12 +287,7 @@ void calibrateSensor() {
 }
 #endif
 
-enum ObjectType {
-  NO_OBJECT,
-  SOFT_OBJECT,
-  MEDIUM_OBJECT,
-  HARD_OBJECT
-};
+
 
 ObjectType is_there_object(double B) {
 
