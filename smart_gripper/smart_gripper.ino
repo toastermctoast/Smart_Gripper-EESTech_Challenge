@@ -22,6 +22,7 @@
 #include "config.h"
 #include <SimpleFOC.h>
 
+<<<<<<< Updated upstream
 // define SPI pins for TLE5012 sensor
 #define PIN_SPI1_SS0 94  // Chip Select (CS) pin
 #define PIN_SPI1_MOSI 69 // MOSI pin
@@ -53,6 +54,7 @@ BLDCMotor motor = BLDCMotor(
 // BLDC driver instance
 BLDCDriver3PWM driver = BLDCDriver3PWM(U, V, W, EN_U, EN_V, EN_W);
 
+<<<<<<< Updated upstream
 // voltage set point variable
 float target_voltage = -1;
 double B_abs;
@@ -202,6 +204,7 @@ void loop() {
 
   B_abs = sqrt(x*x + y*y + z*z);
 
+<<<<<<< Updated upstream
     // print the magnetic field data
     Serial.print("Magnetic Field: ");
     Serial.print(x);

@@ -31,6 +31,4 @@ enum ObjectType {
   HARD_OBJECT
 };
 
-
-
 #endif // CONFIG_H
