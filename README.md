@@ -1,0 +1,2 @@
+# Smart Gripper - EESTech Challenge
+
