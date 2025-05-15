@@ -20,8 +20,9 @@ BLDCMotor motor = BLDCMotor(
 BLDCDriver3PWM driver = BLDCDriver3PWM(U, V, W, EN_U, EN_V, EN_W);
 
 float target_angle;
-const float angle_step = 0.1;        // Change per button press
+const float angle_step = 0.5;        // Change per button press
 int flag=0;
+bool has_object = false;
 
 #if ENABLE_MAGNETIC_SENSOR
 // create a instance of 3D magnetic sensor
@@ -179,7 +180,7 @@ void loop() {
   }
 
   if(flag==1){
-    if(object == NO_OBJECT){
+    if(object == NO_OBJECT && has_object==false){
         // -- Gripper Control with Buttons --
       if (digitalRead(BUTTON1) == LOW) { 
         target_angle += angle_step;
@@ -192,6 +193,20 @@ void loop() {
         //if (target_angle < -18) target_angle = -18;
         delay(150); // debounce
       }
+    }
+    if(object == HARD_OBJECT || object == MEDIUM_OBJECT || object == SOFT_OBJECT){
+      Serial.println("ETSOY CA");
+      has_object=true;
+    }
+
+    if(has_object==true){
+      if(digitalRead(BUTTON1)==LOW){
+        target_angle -= 4;
+        //if (target_angle < -18) target_angle = -18;
+        delay(150); // debounce
+        has_object=false;
+      }
+    }
 
       // update angle sensor data
       //tle5012Sensor.update();
@@ -213,10 +228,6 @@ void loop() {
       getB(&x, &y, &z);   // gets magnetic field
       B_abs = sqrt(x*x + y*y + z*z);    // absolute value of magnetic field
       object = is_there_object(B_abs);   // checks if the change in the magnetic field is big enough to consider it's hit an object
-    }
-    // else{
-      
-    // }
   
   }
  
