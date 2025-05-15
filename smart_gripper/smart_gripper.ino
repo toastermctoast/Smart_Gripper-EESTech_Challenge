@@ -20,7 +20,7 @@ BLDCMotor motor = BLDCMotor(
 BLDCDriver3PWM driver = BLDCDriver3PWM(U, V, W, EN_U, EN_V, EN_W);
 
 float target_angle;
-const float angle_step = 1;        // Change per button press
+const float angle_step = 0.1;        // Change per button press
 int flag=0;
 
 #if ENABLE_MAGNETIC_SENSOR
@@ -34,6 +34,7 @@ double xOffset = 0, yOffset = 0, zOffset = 0;      // offsets for calibration
 
 double filteredX = 0, filteredY = 0, filteredZ = 0;
 const double alpha = 0.5;   // higher alpha = more sensitive
+ObjectType object;
 
 #endif
 
@@ -146,15 +147,22 @@ void setup() {
   _delay(1000);
 }
 
-ObjectType object = NO_OBJECT;
 
 void loop() {
 
   double x, y, z, B_abs;
-  getB(&x, &y, &z);   // gets magnetic field
+  
 
-  B_abs = sqrt(x*x + y*y + z*z);    // absolute value of magnetic field
-  object = is_there_object(B_abs);   // checks if the change in the magnetic field is big enough to consider it's hit an object
+  // Serial.print("Magnetic Field: ");
+  // Serial.print(x);
+  // Serial.print(",");
+
+  // Serial.print(y);
+  // Serial.print(",");
+
+  // Serial.print(z);
+  // Serial.println("");
+
 
   /*
   Serial.print("Target angle: ");
@@ -169,39 +177,50 @@ void loop() {
     target_angle= motor.shaftAngle();
     //Serial.print(flag);
   }
+
+  if(flag==1){
+    if(object == NO_OBJECT){
+        // -- Gripper Control with Buttons --
+      if (digitalRead(BUTTON1) == LOW) { 
+        target_angle += angle_step;
+        //if (target_angle > -1) target_angle = -1;
+        delay(150); // debounce
+      }
+      
+      else if (digitalRead(BUTTON2) == LOW) {
+        target_angle -= angle_step;
+        //if (target_angle < -18) target_angle = -18;
+        delay(150); // debounce
+      }
+
+      // update angle sensor data
+      //tle5012Sensor.update();
+
+      //--------MOVE MOTOR----------               
+
+      // main FOC algorithm function
+      // the faster you run this function the better
+      // Arduino UNO loop  ~1kHz
+      // Bluepill loop ~10kHz
+      motor.loopFOC();    
+
+      // Motion control function
+      // this function can be run at much lower frequency than loopFOC() function
+      // You can also use motor.move() and set the motor.target in the code
+
+      motor.move(target_angle);// PID angle control
+
+      getB(&x, &y, &z);   // gets magnetic field
+      B_abs = sqrt(x*x + y*y + z*z);    // absolute value of magnetic field
+      object = is_there_object(B_abs);   // checks if the change in the magnetic field is big enough to consider it's hit an object
+    }
+    // else{
+      
+    // }
   
-  if (object == NO_OBJECT && flag==1){
-        
-    // -- Gripper Control with Buttons --
-    if (digitalRead(BUTTON1) == LOW) { 
-      target_angle += angle_step;
-      //if (target_angle > -1) target_angle = -1;
-      delay(150); // debounce
-    }
-    
-    else if (digitalRead(BUTTON2) == LOW) {
-      target_angle -= angle_step;
-      //if (target_angle < -18) target_angle = -18;
-      delay(150); // debounce
-    }
-
-    // update angle sensor data
-    tle5012Sensor.update();
-
-    //--------MOVE MOTOR----------               
-
-    // main FOC algorithm function
-    // the faster you run this function the better
-    // Arduino UNO loop  ~1kHz
-    // Bluepill loop ~10kHz
-    motor.loopFOC();    
-
-    // Motion control function
-    // this function can be run at much lower frequency than loopFOC() function
-    // You can also use motor.move() and set the motor.target in the code
-
-    motor.move(target_angle);// PID angle control
   }
+ 
+
 
   tle5012Sensor.update();
     
@@ -244,15 +263,13 @@ void getB(double* x, double* y, double* z){
   *x -= xOffset;
   *y -= yOffset;
   *z -= zOffset;
+
 }
 #endif
 
 ObjectType is_there_object(double B) {
 
-  static double last_B = 0;
-
-  double d_B = B - last_B;
-  last_B = B;
+  double d_B = B;
 
   Serial.println(d_B);
 
@@ -264,58 +281,58 @@ ObjectType is_there_object(double B) {
     Serial.println("🟨 Medium-hard object detected");
     return MEDIUM_OBJECT;
 
-  } else if (d_B > 0.3) {   // Soft object detected
+  } else if (d_B > 0.5) {   // Soft object detected
     Serial.println("🟩 Soft object detected");
     return SOFT_OBJECT;
   }
   return NO_OBJECT;
 }
 
-void autoTuneP_angle_usingMagneticSensor(float targetAngle, float* bestP) {
-  float testPValues[] = {2.0, 5.0, 10.0, 15.0, 20.0};
-  int numTests = sizeof(testPValues) / sizeof(float);
+// void autoTuneP_angle_usingMagneticSensor(float targetAngle, float* bestP) {
+//   float testPValues[] = {2.0, 5.0, 10.0, 15.0, 20.0};
+//   int numTests = sizeof(testPValues) / sizeof(float);
 
-  float bestPressure = 0;
-  float bestPValue = 0;
+//   float bestPressure = 0;
+//   float bestPValue = 0;
 
-  Serial.println("🔧 Starting PID P-angle tuning...");
+//   Serial.println("🔧 Starting PID P-angle tuning...");
 
-  for (int i = 0; i < numTests; i++) {
-    float testP = testPValues[i];
-    motor.P_angle.P = testP;
+//   for (int i = 0; i < numTests; i++) {
+//     float testP = testPValues[i];
+//     motor.P_angle.P = testP;
 
-    Serial.print("Testing P = ");
-    Serial.println(testP);
+//     Serial.print("Testing P = ");
+//     Serial.println(testP);
 
-    // Move to grip position
-    target_angle = targetAngle;
-    for (int j = 0; j < 300; j++) {
-      motor.loopFOC();
-      motor.move(target_angle);
-      delay(5);
-    }
+//     // Move to grip position
+//     target_angle = targetAngle;
+//     for (int j = 0; j < 300; j++) {
+//       motor.loopFOC();
+//       motor.move(target_angle);
+//       delay(5);
+//     }
 
-    // Measure magnetic field
-    double x, y, z;
-    getB(&x, &y, &z);
-    float B_abs = sqrt(x * x + y * y + z * z);
+//     // Measure magnetic field
+//     double x, y, z;
+//     getB(&x, &y, &z);
+//     float B_abs = sqrt(x * x + y * y + z * z);
 
-    Serial.print("B_abs = ");
-    Serial.println(B_abs);
+//     Serial.print("B_abs = ");
+//     Serial.println(B_abs);
 
-    // Save best if pressure (B_abs) is highest
-    if (B_abs > bestPressure) {
-      bestPressure = B_abs;
-      bestPValue = testP;
-    }
+//     // Save best if pressure (B_abs) is highest
+//     if (B_abs > bestPressure) {
+//       bestPressure = B_abs;
+//       bestPValue = testP;
+//     }
 
-    delay(500); // pause between tests
-  }
+//     delay(500); // pause between tests
+//   }
 
-  *bestP = bestPValue;
-  motor.P_angle.P = bestPValue;
-  Serial.print("✅ Best P-angle value found: ");
-  Serial.println(bestPValue);
-}
+//   *bestP = bestPValue;
+//   motor.P_angle.P = bestPValue;
+//   Serial.print("✅ Best P-angle value found: ");
+//   Serial.println(bestPValue);
+// }
 
 
