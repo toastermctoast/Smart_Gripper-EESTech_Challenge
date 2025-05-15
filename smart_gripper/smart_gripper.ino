@@ -19,7 +19,7 @@ BLDCMotor motor = BLDCMotor(
 // BLDC driver instance
 BLDCDriver3PWM driver = BLDCDriver3PWM(U, V, W, EN_U, EN_V, EN_W);
 
-float target_angle = 2;         // Angle target in radians
+float target_angle;
 const float angle_step = 1;        // Change per button press
 int flag=0;
 
@@ -121,12 +121,18 @@ void setup() {
   motor.initFOC();
   Serial.println(F("Motor ready."));
 
+  target_angle= motor.shaftAngle();
+
   #if ENABLE_MAGNETIC_SENSOR
   // start 3D magnetic sensor
   dut.begin();
   // calibrate 3D magnetic sensor to get the offsets
   calibrateSensor();
   Serial.println("3D magnetic sensor Calibration completed.");
+
+  float tunedP = 0;
+  //autoTuneP_angle_usingMagneticSensor(2.0, &tunedP);  // tune for angle 2.0
+
 
   // set the pin modes for buttons
   pinMode(BUTTON1, INPUT);
@@ -147,14 +153,24 @@ void loop() {
   B_abs = sqrt(x*x + y*y + z*z);    // absolute value of magnetic field
   object = is_there_object(B_abs);   // checks if the change in the magnetic field is big enough to consider it's hit an object
 
-  if (digitalRead(BUTTON1 == LOW)){
+  
+  Serial.print("Target angle: ");
+  Serial.print(target_angle);
+  Serial.print(" | Shaft angle: ");
+  Serial.println(motor.shaftAngle());
+  Serial.println();
+  
+  
+  if (digitalRead(BUTTON1)== LOW){
     flag=1;
+    target_angle= motor.shaftAngle();
+    //Serial.print(flag);
   }
   
   if (object == NO_OBJECT && flag==1){
         
     // -- Gripper Control with Buttons --
-    if (digitalRead(BUTTON1) == LOW) {
+    if (digitalRead(BUTTON1) == LOW) { 
       target_angle += angle_step;
       //if (target_angle > -1) target_angle = -1;
       delay(150); // debounce
@@ -185,17 +201,15 @@ void loop() {
     motor.move(target_angle);// PID angle control
     
   }
+
+  tle5012Sensor.update();
     
   #if ENABLE_COMMANDER
     // user communication
     command.run();
   #endif
 
-  Serial.print("Target angle: ");
-  Serial.print(target_angle);
-  Serial.print(" | Shaft angle: ");
-  Serial.println(motor.shaftAngle());
-  Serial.println();
+  
 }
 
 // Simple bubble sort for Arduino
@@ -280,10 +294,56 @@ ObjectType is_there_object(double B) {
     Serial.println("🟩 Soft object detected");
     return SOFT_OBJECT;
   }
-  Serial.println("No object");
+  //Serial.println("No object");
   return NO_OBJECT;
 
 }
 
+void autoTuneP_angle_usingMagneticSensor(float targetAngle, float* bestP) {
+  float testPValues[] = {2.0, 5.0, 10.0, 15.0, 20.0};
+  int numTests = sizeof(testPValues) / sizeof(float);
+
+  float bestPressure = 0;
+  float bestPValue = 0;
+
+  Serial.println("🔧 Starting PID P-angle tuning...");
+
+  for (int i = 0; i < numTests; i++) {
+    float testP = testPValues[i];
+    motor.P_angle.P = testP;
+
+    Serial.print("Testing P = ");
+    Serial.println(testP);
+
+    // Move to grip position
+    target_angle = targetAngle;
+    for (int j = 0; j < 300; j++) {
+      motor.loopFOC();
+      motor.move(target_angle);
+      delay(5);
+    }
+
+    // Measure magnetic field
+    double x, y, z;
+    getB(&x, &y, &z);
+    float B_abs = sqrt(x * x + y * y + z * z);
+
+    Serial.print("B_abs = ");
+    Serial.println(B_abs);
+
+    // Save best if pressure (B_abs) is highest
+    if (B_abs > bestPressure) {
+      bestPressure = B_abs;
+      bestPValue = testP;
+    }
+
+    delay(500); // pause between tests
+  }
+
+  *bestP = bestPValue;
+  motor.P_angle.P = bestPValue;
+  Serial.print("✅ Best P-angle value found: ");
+  Serial.println(bestPValue);
+}
 
 
