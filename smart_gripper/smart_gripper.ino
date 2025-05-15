@@ -27,10 +27,11 @@ int flag=0;
 // create a instance of 3D magnetic sensor
 using namespace ifx::tlx493d;
 TLx493D_A2B6 dut(Wire1, TLx493D_IIC_ADDR_A0_e);
-// define the number of calibration samples
-const int CALIBRATION_SAMPLES = 20;
-// offsets for calibration
-double xOffset = 0, yOffset = 0, zOffset = 0;
+
+const int CALIBRATION_SAMPLES = 100;    // define the number of calibration samples
+double xVals[CALIBRATION_SAMPLES], yVals[CALIBRATION_SAMPLES], zVals[CALIBRATION_SAMPLES]; 
+double xOffset = 0, yOffset = 0, zOffset = 0;      // offsets for calibration
+
 #endif
 
 #if ENABLE_COMMANDER
@@ -198,31 +199,52 @@ void loop() {
   Serial.println();
 }
 
+// Simple bubble sort for Arduino
+void bubbleSort(double arr[], int n) {
+  for (int i = 0; i < n - 1; ++i) {
+    for (int j = 0; j < n - i - 1; ++j) {
+      if (arr[j] > arr[j + 1]) {
+        double temp = arr[j];
+        arr[j] = arr[j + 1];
+        arr[j + 1] = temp;
+      }
+    }
+  }
+}
+
 #if ENABLE_MAGNETIC_SENSOR
   /**
   * @brief Calibrates the magnetic field sensor by calculating the average
   * offsets for the X, Y, and Z axes over a series of samples.
   */
 void calibrateSensor() {
-  double sumX = 0, sumY = 0, sumZ = 0;
-
   for (int i = 0; i < CALIBRATION_SAMPLES; ++i) {
     double temp;
-    double valX, valY, valZ;
-
-    dut.getMagneticFieldAndTemperature(&valX, &valY, &valZ, &temp);
-    sumX += valX;
-    sumY += valY;
-    sumZ += valZ;
-
-    delay(10); // Adjust delay as needed
+    dut.getMagneticFieldAndTemperature(&xVals[i], &yVals[i], &zVals[i], &temp);
+    delay(10);
   }
 
-  // Calculate average offsets
-  xOffset = sumX / CALIBRATION_SAMPLES;
-  yOffset = sumY / CALIBRATION_SAMPLES;
-  zOffset = sumZ / CALIBRATION_SAMPLES;
+  // Sort the arrays
+  bubbleSort(xVals, CALIBRATION_SAMPLES);
+  bubbleSort(yVals, CALIBRATION_SAMPLES);
+  bubbleSort(zVals, CALIBRATION_SAMPLES);
 
+  // Trimmed mean: exclude top/bottom 10%
+  int start = CALIBRATION_SAMPLES * 0.1;
+  int end = CALIBRATION_SAMPLES * 0.9;
+
+  xOffset = yOffset = zOffset = 0;
+  int count = end - start;
+
+  for (int i = start; i < end; ++i) {
+    xOffset += xVals[i];
+    yOffset += yVals[i];
+    zOffset += zVals[i];
+  }
+
+  xOffset /= count;
+  yOffset /= count;
+  zOffset /= count;
 }
 
 void getB(double* x, double* y, double* z){
@@ -259,6 +281,7 @@ ObjectType is_there_object(double B) {
     Serial.println("🟩 Soft object detected");
     return SOFT_OBJECT;
   }
+  Serial.println("No object");
   return NO_OBJECT;
 
 }
