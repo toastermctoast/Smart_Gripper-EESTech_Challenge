@@ -21,7 +21,6 @@ BLDCDriver3PWM driver = BLDCDriver3PWM(U, V, W, EN_U, EN_V, EN_W);
 
 float target_angle = 2;         // Angle target in radians
 const float angle_step = 1;        // Change per button press
-ObjectType object;
 
 #if ENABLE_MAGNETIC_SENSOR
 // create a instance of 3D magnetic sensor
@@ -136,59 +135,57 @@ void setup() {
   _delay(1000);
 }
 
+ObjectType object = NO_OBJECT;
+
 void loop() {
 
-  // -- Gripper Control with Buttons --
-  if (digitalRead(BUTTON1) == LOW) {
-    target_angle += angle_step;
-    //if (target_angle > -1) target_angle = -1;
-    delay(150); // debounce
-  }
-   
-  else if (digitalRead(BUTTON2) == LOW) {
-    target_angle -= angle_step;
-    //if (target_angle < -18) target_angle = -18;
-    delay(150); // debounce
-  }
-
   double x, y, z, B_abs;
-  getB(&x, &y, &z);
+  getB(&x, &y, &z);   // gets magnetic field
 
-  Serial.print("Target angle: ");
-  Serial.print(target_angle);
-  Serial.print(" | Shaft angle: ");
-  Serial.println(motor.shaftAngle());
+  B_abs = sqrt(x*x + y*y + z*z);    // absolute value of magnetic field
+  object = is_there_object(B_abs);   // checks if the change in the magnetic field is big enough to consider it's hit an object
 
-  B_abs = sqrt(x*x + y*y + z*z);
-  object = is_there_object(B_abs);
+  if (object == NO_OBJECT){
+        
+    // -- Gripper Control with Buttons --
+    if (digitalRead(BUTTON1) == LOW) {
+      target_angle += angle_step;
+      //if (target_angle > -1) target_angle = -1;
+      delay(150); // debounce
+    }
+    
+    else if (digitalRead(BUTTON2) == LOW) {
+      target_angle -= angle_step;
+      //if (target_angle < -18) target_angle = -18;
+      delay(150); // debounce
+    }
 
-  // update angle sensor data
-  tle5012Sensor.update();
+    // update angle sensor data
+    tle5012Sensor.update();
 
-  #if ENABLE_READ_ANGLE
-    Serial.print(tle5012Sensor.getSensorAngle());
-    Serial.println("");
-  #endif
+    //--------MOVE MOTOR----------               
 
-  //--------MOVE MOTOR----------               
+    // main FOC algorithm function
+    // the faster you run this function the better
+    // Arduino UNO loop  ~1kHz
+    // Bluepill loop ~10kHz
+    motor.loopFOC();    
 
-  // main FOC algorithm function
-  // the faster you run this function the better
-  // Arduino UNO loop  ~1kHz
-  // Bluepill loop ~10kHz
-  motor.loopFOC();    
-
-  // Motion control function
-  // velocity, position or voltage (defined in motor.controller)
-  // this function can be run at much lower frequency than loopFOC() function
-  // You can also use motor.move() and set the motor.target in the code
-  motor.move(target_angle);         // PID angle control
+    // Motion control function
+    // this function can be run at much lower frequency than loopFOC() function
+    // You can also use motor.move() and set the motor.target in the code
+    motor.move(target_angle);         // PID angle control
+  }
     
   #if ENABLE_COMMANDER
     // user communication
     command.run();
   #endif
 
+  Serial.print("Target angle: ");
+  Serial.print(target_angle);
+  Serial.print(" | Shaft angle: ");
+  Serial.println(motor.shaftAngle());
   Serial.println();
 }
 
@@ -241,15 +238,15 @@ ObjectType is_there_object(double B) {
   double d_B = fabs(B - last_B);
   last_B = B;
 
-  if (d_B > 2) {   // Object detected
+  if (d_B > 2) {   // Hard object detected
     Serial.println("🟥 Hard object detected");
     return HARD_OBJECT;
 
-  } else if (d_B > 1) {
-    Serial.println("🟨 Medium-soft object detected");
+  } else if (d_B > 1) {   // Medium-hard object detected
+    Serial.println("🟨 Medium-hard object detected");
     return MEDIUM_OBJECT;
 
-  } else if (d_B > 0.3) {
+  } else if (d_B > 0.3) {   // Soft object detected
     Serial.println("🟩 Soft object detected");
     return SOFT_OBJECT;
   }
