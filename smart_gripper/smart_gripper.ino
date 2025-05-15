@@ -21,6 +21,7 @@ BLDCDriver3PWM driver = BLDCDriver3PWM(U, V, W, EN_U, EN_V, EN_W);
 
 float target_angle = 2;         // Angle target in radians
 const float angle_step = 1;        // Change per button press
+int flag=0;
 
 #if ENABLE_MAGNETIC_SENSOR
 // create a instance of 3D magnetic sensor
@@ -127,6 +128,7 @@ void setup() {
   Serial.println("3D magnetic sensor Calibration completed.");
 
   // set the pin modes for buttons
+  pinMode()
   pinMode(BUTTON1, INPUT);
   pinMode(BUTTON2, INPUT);
   #endif
@@ -145,7 +147,11 @@ void loop() {
   B_abs = sqrt(x*x + y*y + z*z);    // absolute value of magnetic field
   object = is_there_object(B_abs);   // checks if the change in the magnetic field is big enough to consider it's hit an object
 
-  if (object == NO_OBJECT){
+  if (digitalRead(BUTTON3 == LOW)){
+    flag=1;
+  }
+  
+  if (object == NO_OBJECT AND flag==1){
         
     // -- Gripper Control with Buttons --
     if (digitalRead(BUTTON1) == LOW) {
@@ -174,7 +180,10 @@ void loop() {
     // Motion control function
     // this function can be run at much lower frequency than loopFOC() function
     // You can also use motor.move() and set the motor.target in the code
-    motor.move(target_angle);         // PID angle control
+
+  
+    motor.move(target_angle);// PID angle control
+    
   }
     
   #if ENABLE_COMMANDER
@@ -222,12 +231,12 @@ void getB(double* x, double* y, double* z){
   *y -= yOffset;
   *z -= zOffset;
 
-  Serial.print("Magnetic Field: ");
-  Serial.print(*x);
-  Serial.print(",");
-  Serial.print(*y);
-  Serial.print(",");
-  Serial.println(*z);
+  // Serial.print("Magnetic Field: ");
+  // Serial.print(*x);
+  // Serial.print(",");
+  // Serial.print(*y);
+  // Serial.print(",");
+  // Serial.println(*z);
 }
 #endif
 
