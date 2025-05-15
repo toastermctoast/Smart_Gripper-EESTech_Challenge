@@ -28,7 +28,7 @@ int flag=0;
 using namespace ifx::tlx493d;
 TLx493D_A2B6 dut(Wire1, TLx493D_IIC_ADDR_A0_e);
 
-const int CALIBRATION_SAMPLES = 100;    // define the number of calibration samples
+const int CALIBRATION_SAMPLES = 20;    // define the number of calibration samples
 double xVals[CALIBRATION_SAMPLES], yVals[CALIBRATION_SAMPLES], zVals[CALIBRATION_SAMPLES]; 
 double xOffset = 0, yOffset = 0, zOffset = 0;      // offsets for calibration
 
@@ -164,7 +164,7 @@ void loop() {
   Serial.println();
   */
   
-  if (digitalRead(BUTTON1)== LOW){
+  if (digitalRead(BUTTON1) == LOW){
     flag=1;
     target_angle= motor.shaftAngle();
     //Serial.print(flag);
@@ -200,9 +200,7 @@ void loop() {
     // this function can be run at much lower frequency than loopFOC() function
     // You can also use motor.move() and set the motor.target in the code
 
-  
     motor.move(target_angle);// PID angle control
-    
   }
 
   tle5012Sensor.update();
@@ -214,65 +212,39 @@ void loop() {
 
 }
 
-// Simple bubble sort for Arduino
-void bubbleSort(double arr[], int n) {
-  for (int i = 0; i < n - 1; ++i) {
-    for (int j = 0; j < n - i - 1; ++j) {
-      if (arr[j] > arr[j + 1]) {
-        double temp = arr[j];
-        arr[j] = arr[j + 1];
-        arr[j + 1] = temp;
-      }
-    }
-  }
-}
-
 #if ENABLE_MAGNETIC_SENSOR
   /**
   * @brief Calibrates the magnetic field sensor by calculating the average
   * offsets for the X, Y, and Z axes over a series of samples.
   */
 void calibrateSensor() {
+  double sumX = 0, sumY = 0, sumZ = 0;
+
   for (int i = 0; i < CALIBRATION_SAMPLES; ++i) {
     double temp;
-    dut.getMagneticFieldAndTemperature(&xVals[i], &yVals[i], &zVals[i], &temp);
-    delay(10);
+    double valX, valY, valZ;
+
+    dut.getMagneticFieldAndTemperature(&valX, &valY, &valZ, &temp);
+    sumX += valX;
+    sumY += valY;
+    sumZ += valZ;
+
+    delay(10); // Adjust delay as needed
   }
 
-  // Sort the arrays
-  bubbleSort(xVals, CALIBRATION_SAMPLES);
-  bubbleSort(yVals, CALIBRATION_SAMPLES);
-  bubbleSort(zVals, CALIBRATION_SAMPLES);
-
-  // Trimmed mean: exclude top/bottom 10%
-  int start = CALIBRATION_SAMPLES * 0.1;
-  int end = CALIBRATION_SAMPLES * 0.9;
-
-  xOffset = yOffset = zOffset = 0;
-  int count = end - start;
-
-  for (int i = start; i < end; ++i) {
-    xOffset += xVals[i];
-    yOffset += yVals[i];
-    zOffset += zVals[i];
-  }
-
-  xOffset /= count;
-  yOffset /= count;
-  zOffset /= count;
+  // Calculate average offsets
+  xOffset = sumX / CALIBRATION_SAMPLES;
+  yOffset = sumY / CALIBRATION_SAMPLES;
+  zOffset = sumZ / CALIBRATION_SAMPLES;
 }
 
-void getB(double* x, double* y, double* z) {
-  double rawX, rawY, rawZ;
+void getB(double* x, double* y, double* z){
   dut.getMagneticField(x, y, z);
 
-  // Apply calibration offsets
   *x -= xOffset;
   *y -= yOffset;
   *z -= zOffset;
-
 }
-
 #endif
 
 ObjectType is_there_object(double B) {
@@ -283,36 +255,20 @@ ObjectType is_there_object(double B) {
   last_B = B;
 
   Serial.println(d_B);
-  // State transitions
-  switch (object) {
-    case NO_OBJECT:
-      if (d_B > 0.45) {
-        Serial.println("🟥 Hard object detected");
-        object = HARD_OBJECT;
-      } 
-      else if (d_B > 0.35) {
-        Serial.println("🟨 Medium-hard object detected");
-        object = MEDIUM_OBJECT;
-      } 
-      else if (d_B > 0.30) {
-        Serial.println("🟩 Soft object detected");
-        object = SOFT_OBJECT;
-      }
-      break;
 
-    case HARD_OBJECT:
-    case MEDIUM_OBJECT:
-    case SOFT_OBJECT:
-      // Stay in current state unless pressure (d_B) drops below threshold
-      if (d_B < -0.3) {
-        Serial.println("🟦 Object released");
-        object = NO_OBJECT;
-      }
-      break;
+  if (d_B > 2) {   // Hard object detected
+    Serial.println("🟥 Hard object detected");
+    return HARD_OBJECT;
+
+  } else if (d_B > 1) {   // Medium-hard object detected
+    Serial.println("🟨 Medium-hard object detected");
+    return MEDIUM_OBJECT;
+
+  } else if (d_B > 0.3) {   // Soft object detected
+    Serial.println("🟩 Soft object detected");
+    return SOFT_OBJECT;
   }
-
   return NO_OBJECT;
-
 }
 
 void autoTuneP_angle_usingMagneticSensor(float targetAngle, float* bestP) {
