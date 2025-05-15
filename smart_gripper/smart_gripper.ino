@@ -32,6 +32,9 @@ const int CALIBRATION_SAMPLES = 100;    // define the number of calibration samp
 double xVals[CALIBRATION_SAMPLES], yVals[CALIBRATION_SAMPLES], zVals[CALIBRATION_SAMPLES]; 
 double xOffset = 0, yOffset = 0, zOffset = 0;      // offsets for calibration
 
+double filteredX = 0, filteredY = 0, filteredZ = 0;
+const double alpha = 0.1; // adjust as needed
+
 #endif
 
 #if ENABLE_COMMANDER
@@ -129,7 +132,6 @@ void setup() {
   Serial.println("3D magnetic sensor Calibration completed.");
 
   // set the pin modes for buttons
-  pinMode()
   pinMode(BUTTON1, INPUT);
   pinMode(BUTTON2, INPUT);
   #endif
@@ -148,11 +150,9 @@ void loop() {
   B_abs = sqrt(x*x + y*y + z*z);    // absolute value of magnetic field
   object = is_there_object(B_abs);   // checks if the change in the magnetic field is big enough to consider it's hit an object
 
-  if (digitalRead(BUTTON3 == LOW)){
-    flag=1;
-  }
-  
-  if (object == NO_OBJECT AND flag==1){
+  //if (digitalRead(BUTTON3) == LOW)  flag=1;
+
+  if (object == NO_OBJECT && flag==1){
         
     // -- Gripper Control with Buttons --
     if (digitalRead(BUTTON1) == LOW) {
@@ -247,19 +247,33 @@ void calibrateSensor() {
   zOffset /= count;
 }
 
-void getB(double* x, double* y, double* z){
-  dut.getMagneticField(x, y, z);
-  *x -= xOffset;
-  *y -= yOffset;
-  *z -= zOffset;
+void getB(double* x, double* y, double* z) {
+  double rawX, rawY, rawZ;
+  dut.getMagneticField(&rawX, &rawY, &rawZ);
 
-  // Serial.print("Magnetic Field: ");
-  // Serial.print(*x);
-  // Serial.print(",");
-  // Serial.print(*y);
-  // Serial.print(",");
-  // Serial.println(*z);
+  // Apply calibration offsets
+  rawX -= xOffset;
+  rawY -= yOffset;
+  rawZ -= zOffset;
+
+  // Exponential Moving Average
+  filteredX = alpha * rawX + (1 - alpha) * filteredX;
+  filteredY = alpha * rawY + (1 - alpha) * filteredY;
+  filteredZ = alpha * rawZ + (1 - alpha) * filteredZ;
+
+  // Return filtered values
+  *x = filteredX;
+  *y = filteredY;
+  *z = filteredZ;
+
+  Serial.print("Magnetic Field: ");
+  Serial.print(*x);
+  Serial.print(", ");
+  Serial.print(*y);
+  Serial.print(", ");
+  Serial.println(*z);
 }
+
 #endif
 
 ObjectType is_there_object(double B) {
