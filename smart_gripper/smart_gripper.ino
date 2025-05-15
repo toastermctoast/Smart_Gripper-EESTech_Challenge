@@ -3,18 +3,15 @@
 #include "config.h"
 #include <SimpleFOC.h>
 
-// create an instance of SPIClass3W for 3-wire SPI communication
+// Create an instance of SPIClass3W for 3-wire SPI communication
 tle5012::SPIClass3W tle5012::SPI3W1(2);
-// create an instance of TLE5012Sensor
+// Create an instance of TLE5012Sensor
 TLE5012Sensor tle5012Sensor(&SPI3W1, PIN_SPI1_SS0, PIN_SPI1_MISO, PIN_SPI1_MOSI,
                             PIN_SPI1_SCK);
 
-// BLDC motor instance BLDCMotor (polepairs, motor phase resistance, motor KV
-// rating, motor phase inductance)
 BLDCMotor motor = BLDCMotor(
     7, 0.24, 360,
     0.000133); // 7 pole pairs, 0.24 Ohm phase resistance, 360 KV and 0.000133H
-// you can find more data of motor in the doc
 
 // BLDC driver instance
 BLDCDriver3PWM driver = BLDCDriver3PWM(U, V, W, EN_U, EN_V, EN_W);
@@ -46,79 +43,61 @@ void doTarget(char *cmd) { command.scalar(&target_voltage, cmd); }
 #endif
 
 void setup() {
-  // use monitoring with serial
+
   Serial.begin(115200);
-  // enable more verbose output for debugging
-  // comment out if not needed
   SimpleFOCDebug::enable(&Serial);
 
   // initialise magnetic sensor hardware
   tle5012Sensor.init();
+
   // link the motor to the sensor
   motor.linkSensor(&tle5012Sensor);
-
   // power supply voltage
   driver.voltage_power_supply = 12;
   // limit the maximal dc voltage the driver can set
-  // as a protection measure for the low-resistance motors
-  // this value is fixed on startup
   driver.voltage_limit = 6;
+
   if (!driver.init()) {
     Serial.println("Driver init failed!");
     return;
   }
   // link the motor and the driver
   motor.linkDriver(&driver);
-
   // aligning voltage
   motor.voltage_sensor_align = 2;
   // choose FOC modulation (optional)
   motor.foc_modulation = FOCModulationType::SpaceVectorPWM;
   // set motion control loop to be used
-  //motor.controller = MotionControlType::torque;
-
   motor.controller = MotionControlType::angle;
 
   // velocity PID controller parameters
-  // default P=0.5 I=10 D=0
   motor.PID_velocity.P = 0.5;
   motor.PID_velocity.I = 10;
   motor.PID_velocity.D = 0;
+
   // jerk control using voltage voltage ramp
-  // default value is 300 volts per sec  ~ 0.3V per millisecond
   motor.PID_velocity.output_ramp = 1000;
 
-  // velocity low pass filtering
-  // default 5ms - try different values to see what is the best. 
-  // the lower the less filtered
+  // velocity low pass filtering (the lower the less filtered)
   motor.LPF_velocity.Tf = 0.01;
 
-  // setting the limits
-  // either voltage
-  motor.voltage_limit = 10; // Volts - default driver.voltage_limit
-  // of current 
-  motor.current_limit = 2; // Amps - default 0.2Amps
+  // setting the limits of volts and amps
+  motor.voltage_limit = 10; 
+  motor.current_limit = 2; 
 
   // angle PID controller 
-  // default P=20
   motor.P_angle.P = 20; 
-  motor.P_angle.I = 0;  // usually only P controller is enough 
-  motor.P_angle.D = 0;  // usually only P controller is enough 
+  motor.P_angle.I = 0;  
+  motor.P_angle.D = 0;  
+
   // acceleration control using output ramp
-  // this variable is in rad/s^2 and sets the limit of acceleration
-  motor.P_angle.output_ramp = 10000; // default 1e6 rad/s^2
+  motor.P_angle.output_ramp = 10000; 
 
   // angle low pass filtering
-  // default 0 - disabled  
-  // use only for very noisy position sensors - try to avoid and keep the values very small
-  motor.LPF_angle.Tf = 0; // default 0
+  motor.LPF_angle.Tf = 0; 
 
   // setting the limits
-  //  maximal velocity of the position control
-  motor.velocity_limit = 4; // rad/s - default 20
-
-  // comment out if not needed
-  // motor.useMonitoring(Serial);
+  motor.velocity_limit = 4; 
 
   // initialize motor
   motor.init();
@@ -136,8 +115,6 @@ void setup() {
   Serial.println("3D magnetic sensor Calibration completed.");
 
   float tunedP = 0;
-  //autoTuneP_angle_usingMagneticSensor(2.0, &tunedP);  // tune for angle 2.0
-
 
   // set the pin modes for buttons
   pinMode(BUTTON1, INPUT);
@@ -153,45 +130,22 @@ void loop() {
 
   double x, y, z, B_abs;
   
-
-  // Serial.print("Magnetic Field: ");
-  // Serial.print(x);
-  // Serial.print(",");
-
-  // Serial.print(y);
-  // Serial.print(",");
-
-  // Serial.print(z);
-  // Serial.println("");
-
-
-  /*
-  Serial.print("Target angle: ");
-  Serial.print(target_angle);
-  Serial.print(" | Shaft angle: ");
-  Serial.println(motor.shaftAngle());
-  Serial.println();
-  */
-  
   if (digitalRead(BUTTON1) == LOW){
     flag=1;
     target_angle= motor.shaftAngle();
-    //Serial.print(flag);
   }
 
   if(flag==1){
     if(object == NO_OBJECT && has_object==false){
-        // -- Gripper Control with Buttons --
+        //Gripper Control with Buttons
       if (digitalRead(BUTTON1) == LOW) { 
         target_angle += angle_step;
-        //if (target_angle > -1) target_angle = -1;
-        delay(150); // debounce
+        delay(150); 
       }
       
       else if (digitalRead(BUTTON2) == LOW) {
         target_angle -= angle_step;
-        //if (target_angle < -18) target_angle = -18;
-        delay(150); // debounce
+        delay(150); 
       }
     }
     if(object == HARD_OBJECT || object == MEDIUM_OBJECT || object == SOFT_OBJECT){
@@ -200,28 +154,19 @@ void loop() {
     }
 
     if(has_object==true){
-      if(digitalRead(BUTTON1)==LOW){
-        target_angle -= 4;
-        //if (target_angle < -18) target_angle = -18;
+      if(digitalRead(BUTTON2)==LOW){
+        target_angle += 1;
         delay(150); // debounce
-        has_object=false;
+      }
+      if(digitalRead(BUTTON1)== LOW){
+        target_angle -= 0.05;
+        delay(150);
       }
     }
 
-      // update angle sensor data
-      //tle5012Sensor.update();
+      //MOVE MOTOR               
 
-      //--------MOVE MOTOR----------               
-
-      // main FOC algorithm function
-      // the faster you run this function the better
-      // Arduino UNO loop  ~1kHz
-      // Bluepill loop ~10kHz
       motor.loopFOC();    
-
-      // Motion control function
-      // this function can be run at much lower frequency than loopFOC() function
-      // You can also use motor.move() and set the motor.target in the code
 
       motor.move(target_angle);// PID angle control
 
@@ -231,10 +176,8 @@ void loop() {
   
   }
  
-
-
   tle5012Sensor.update();
-    
+
   #if ENABLE_COMMANDER
     // user communication
     command.run();
@@ -259,7 +202,7 @@ void calibrateSensor() {
     sumY += valY;
     sumZ += valZ;
 
-    delay(10); // Adjust delay as needed
+    delay(10); 
   }
 
   // Calculate average offsets
@@ -270,11 +213,9 @@ void calibrateSensor() {
 
 void getB(double* x, double* y, double* z){
   dut.getMagneticField(x, y, z);
-
   *x -= xOffset;
   *y -= yOffset;
   *z -= zOffset;
-
 }
 #endif
 
@@ -282,68 +223,21 @@ ObjectType is_there_object(double B) {
 
   double d_B = B;
 
-  Serial.println(d_B);
-
-  if (d_B > 2) {   // Hard object detected
+  if (d_B > 2) {   
     Serial.println("🟥 Hard object detected");
     return HARD_OBJECT;
 
-  } else if (d_B > 1) {   // Medium-hard object detected
+  } else if (d_B > 1) {  
     Serial.println("🟨 Medium-hard object detected");
     return MEDIUM_OBJECT;
 
-  } else if (d_B > 0.5) {   // Soft object detected
+  } else if (d_B > 0.5) { 
     Serial.println("🟩 Soft object detected");
     return SOFT_OBJECT;
   }
   return NO_OBJECT;
 }
 
-// void autoTuneP_angle_usingMagneticSensor(float targetAngle, float* bestP) {
-//   float testPValues[] = {2.0, 5.0, 10.0, 15.0, 20.0};
-//   int numTests = sizeof(testPValues) / sizeof(float);
-
-//   float bestPressure = 0;
-//   float bestPValue = 0;
-
-//   Serial.println("🔧 Starting PID P-angle tuning...");
-
-//   for (int i = 0; i < numTests; i++) {
-//     float testP = testPValues[i];
-//     motor.P_angle.P = testP;
-
-//     Serial.print("Testing P = ");
-//     Serial.println(testP);
-
-//     // Move to grip position
-//     target_angle = targetAngle;
-//     for (int j = 0; j < 300; j++) {
-//       motor.loopFOC();
-//       motor.move(target_angle);
-//       delay(5);
-//     }
-
-//     // Measure magnetic field
-//     double x, y, z;
-//     getB(&x, &y, &z);
-//     float B_abs = sqrt(x * x + y * y + z * z);
-
-//     Serial.print("B_abs = ");
-//     Serial.println(B_abs);
-
-//     // Save best if pressure (B_abs) is highest
-//     if (B_abs > bestPressure) {
-//       bestPressure = B_abs;
-//       bestPValue = testP;
-//     }
-
-//     delay(500); // pause between tests
-//   }
-
-//   *bestP = bestPValue;
-//   motor.P_angle.P = bestPValue;
-//   Serial.print("✅ Best P-angle value found: ");
-//   Serial.println(bestPValue);
-// }
+   
 
 
