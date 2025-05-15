@@ -156,13 +156,13 @@ void loop() {
   B_abs = sqrt(x*x + y*y + z*z);    // absolute value of magnetic field
   object = is_there_object(B_abs);   // checks if the change in the magnetic field is big enough to consider it's hit an object
 
-  
+  /*
   Serial.print("Target angle: ");
   Serial.print(target_angle);
   Serial.print(" | Shaft angle: ");
   Serial.println(motor.shaftAngle());
   Serial.println();
-  
+  */
   
   if (digitalRead(BUTTON1)== LOW){
     flag=1;
@@ -212,7 +212,6 @@ void loop() {
     command.run();
   #endif
 
-  
 }
 
 // Simple bubble sort for Arduino
@@ -265,29 +264,13 @@ void calibrateSensor() {
 
 void getB(double* x, double* y, double* z) {
   double rawX, rawY, rawZ;
-  dut.getMagneticField(&rawX, &rawY, &rawZ);
+  dut.getMagneticField(x, y, z);
 
   // Apply calibration offsets
-  rawX -= xOffset;
-  rawY -= yOffset;
-  rawZ -= zOffset;
+  *x -= xOffset;
+  *y -= yOffset;
+  *z -= zOffset;
 
-  // Exponential Moving Average
-  filteredX = alpha * rawX + (1 - alpha) * filteredX;
-  filteredY = alpha * rawY + (1 - alpha) * filteredY;
-  filteredZ = alpha * rawZ + (1 - alpha) * filteredZ;
-
-  // Return filtered values
-  *x = filteredX;
-  *y = filteredY;
-  *z = filteredZ;
-
-  Serial.print("Magnetic Field: ");
-  Serial.print(*x);
-  Serial.print(", ");
-  Serial.print(*y);
-  Serial.print(", ");
-  Serial.println(*z);
 }
 
 #endif
@@ -296,21 +279,22 @@ ObjectType is_there_object(double B) {
 
   static double last_B = 0;
 
-  double d_B = fabs(B - last_B);
+  double d_B = B - last_B;
   last_B = B;
 
+  Serial.println(d_B);
   // State transitions
   switch (object) {
     case NO_OBJECT:
-      if (d_B > 2) {
+      if (d_B > 0.45) {
         Serial.println("🟥 Hard object detected");
         object = HARD_OBJECT;
       } 
-      else if (d_B > 1) {
+      else if (d_B > 0.35) {
         Serial.println("🟨 Medium-hard object detected");
         object = MEDIUM_OBJECT;
       } 
-      else if (d_B > 0.3) {
+      else if (d_B > 0.30) {
         Serial.println("🟩 Soft object detected");
         object = SOFT_OBJECT;
       }
@@ -320,7 +304,7 @@ ObjectType is_there_object(double B) {
     case MEDIUM_OBJECT:
     case SOFT_OBJECT:
       // Stay in current state unless pressure (d_B) drops below threshold
-      if (d_B > 0.3) {
+      if (d_B < -0.3) {
         Serial.println("🟦 Object released");
         object = NO_OBJECT;
       }
