@@ -33,7 +33,7 @@ double xVals[CALIBRATION_SAMPLES], yVals[CALIBRATION_SAMPLES], zVals[CALIBRATION
 double xOffset = 0, yOffset = 0, zOffset = 0;      // offsets for calibration
 
 double filteredX = 0, filteredY = 0, filteredZ = 0;
-const double alpha = 0.1; // adjust as needed
+const double alpha = 0.5;   // higher alpha = more sensitive
 
 #endif
 
@@ -285,19 +285,34 @@ ObjectType is_there_object(double B) {
   double d_B = fabs(B - last_B);
   last_B = B;
 
-  if (d_B > 2) {   // Hard object detected
-    Serial.println("🟥 Hard object detected");
-    return HARD_OBJECT;
+  // State transitions
+  switch (object) {
+    case NO_OBJECT:
+      if (d_B > 2) {
+        Serial.println("🟥 Hard object detected");
+        object = HARD_OBJECT;
+      } 
+      else if (d_B > 1) {
+        Serial.println("🟨 Medium-hard object detected");
+        object = MEDIUM_OBJECT;
+      } 
+      else if (d_B > 0.3) {
+        Serial.println("🟩 Soft object detected");
+        object = SOFT_OBJECT;
+      }
+      break;
 
-  } else if (d_B > 1) {   // Medium-hard object detected
-    Serial.println("🟨 Medium-hard object detected");
-    return MEDIUM_OBJECT;
-
-  } else if (d_B > 0.3) {   // Soft object detected
-    Serial.println("🟩 Soft object detected");
-    return SOFT_OBJECT;
+    case HARD_OBJECT:
+    case MEDIUM_OBJECT:
+    case SOFT_OBJECT:
+      // Stay in current state unless pressure (d_B) drops below threshold
+      if (d_B > 0.3) {
+        Serial.println("🟦 Object released");
+        object = NO_OBJECT;
+      }
+      break;
   }
-  Serial.println("No object");
+
   return NO_OBJECT;
 
 }
