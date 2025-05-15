@@ -129,7 +129,6 @@ void setup() {
   Serial.println("3D magnetic sensor Calibration completed.");
 
   // set the pin modes for buttons
-  pinMode()
   pinMode(BUTTON1, INPUT);
   pinMode(BUTTON2, INPUT);
   #endif
@@ -148,11 +147,11 @@ void loop() {
   B_abs = sqrt(x*x + y*y + z*z);    // absolute value of magnetic field
   object = is_there_object(B_abs);   // checks if the change in the magnetic field is big enough to consider it's hit an object
 
-  if (digitalRead(BUTTON3 == LOW)){
+  if (digitalRead(BUTTON1 == LOW)){
     flag=1;
   }
   
-  if (object == NO_OBJECT AND flag==1){
+  if (object == NO_OBJECT && flag==1){
         
     // -- Gripper Control with Buttons --
     if (digitalRead(BUTTON1) == LOW) {
