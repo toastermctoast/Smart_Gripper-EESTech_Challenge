@@ -150,8 +150,10 @@ void loop() {
   B_abs = sqrt(x*x + y*y + z*z);    // absolute value of magnetic field
   object = is_there_object(B_abs);   // checks if the change in the magnetic field is big enough to consider it's hit an object
 
-  //if (digitalRead(BUTTON3) == LOW)  flag=1;
-
+  if (digitalRead(BUTTON1 == LOW)){
+    flag=1;
+  }
+  
   if (object == NO_OBJECT && flag==1){
         
     // -- Gripper Control with Buttons --
